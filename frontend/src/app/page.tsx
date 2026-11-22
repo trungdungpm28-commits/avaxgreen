@@ -1,34 +1,1326 @@
 'use client';
-import {useState,useEffect,useRef} from 'react';
-import {Activity,ArrowUpRight,Check,CheckCheck,ChevronRight,ChevronDown,CloudSun,Copy,Download,ExternalLink,FileCheck2,FlaskConical,Globe2,LayoutDashboard,Leaf,MapPin,Menu,Mountain,Plus,ScanLine,ShieldCheck,ShoppingBag,Sparkles,Sun,TreePine,Upload,Wallet,X,Zap,Award,LoaderCircle,Info,RotateCcw} from 'lucide-react';
-type Tab='overview'|'verify'|'market'|'certificates';
-type Certificate={id:string;company:string;amount:number;reason:string;date:string};
-type RecordItem={name:string;location:string;amount:number;type:string;date:string};
-const seed:RecordItem[]=[{name:'Thủ Đức Solar Rooftop',location:'Ho Chi Minh City',amount:246.4,type:'Verified',date:'2 phút trước'},{name:'Green Future Co.',location:'Enterprise retirement',amount:120,type:'Retired',date:'18 phút trước'},{name:'Đà Nẵng Community Solar',location:'Da Nang',amount:183.2,type:'Verified',date:'35 phút trước'}];
-const fmt=(n:number)=>n.toLocaleString('en-US',{maximumFractionDigits:1});
-export default function Home(){
-const [tab,setTab]=useState<Tab>('overview'),[mobile,setMobile]=useState(false),[wallet,setWallet]=useState(''),[modal,setModal]=useState(false),[toast,setToast]=useState(''),[balance,setBalance]=useState(0),[minted,setMinted]=useState(128450),[retired,setRetired]=useState(84260),[certs,setCerts]=useState<Certificate[]>([]),[records,setRecords]=useState(seed),[loaded,setLoaded]=useState(false);
-const [sample,setSample]=useState(false),[file,setFile]=useState(''),[preview,setPreview]=useState(''),[capacity,setCapacity]=useState(5),[lat,setLat]=useState('10.8231'),[lng,setLng]=useState('106.6297'),[busy,setBusy]=useState(''),[verified,setVerified]=useState(false),[claimed,setClaimed]=useState(false),[amount,setAmount]=useState(100),[company,setCompany]=useState(''),[reason,setReason]=useState('Bù đắp phát thải hoạt động doanh nghiệp'),[buy,setBuy]=useState(100),[passport,setPassport]=useState<RecordItem|null>(null),[period,setPeriod]=useState('6 tháng');
-const input=useRef<HTMLInputElement>(null);const co2=Math.round(capacity*4.86*30*0.8*0.6766*10)/10;
-useEffect(()=>{try{const raw=localStorage.getItem('avaxgreen-v1');if(raw){const d=JSON.parse(raw);setBalance(d.balance||0);setMinted(d.minted||128450);setRetired(d.retired||84260);setCerts(d.certs||[]);setRecords(d.records||seed);}}catch{}setLoaded(true)},[]);
-useEffect(()=>{if(loaded)localStorage.setItem('avaxgreen-v1',JSON.stringify({balance,minted,retired,certs,records}))},[loaded,balance,minted,retired,certs,records]);
-useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(''),4500);return()=>clearTimeout(t)}},[toast]);
-function navigate(t:Tab){setTab(t);setMobile(false)}
-function sampleData(){setSample(true);setFile('thu-duc-rooftop-solar.jpg');setCapacity(5);setVerified(false);setClaimed(false);setPreview('');}
-async function verify(){if(!file)return setToast('Hãy tải ảnh hoặc chọn dữ liệu mẫu.');setBusy('verify');await new Promise(r=>setTimeout(r,1700));setVerified(true);setClaimed(false);setBusy('');setToast('Đã tạo Evidence Passport · Chế độ mô phỏng');}
-async function mint(){if(claimed)return;if(!verified)return;setBusy('mint');await new Promise(r=>setTimeout(r,900));setBalance(b=>b+co2);setMinted(n=>n+co2);setClaimed(true);setRecords(r=>[{name:'Your Solar Rooftop',location:'Ho Chi Minh City',amount:co2,type:'Verified',date:'Vừa xong'},...r].slice(0,8));setBusy('');setToast(`Đã nhận ${fmt(co2)} GCARB vào ví demo`)}
-async function purchase(){if(!Number.isFinite(buy)||buy<=0||buy>100000)return setToast('Nhập số lượng từ 1 đến 100,000 GCARB.');setBusy('buy');await new Promise(r=>setTimeout(r,800));setBalance(b=>b+buy);setBusy('');setToast(`Đã mua ${fmt(buy)} GCARB · Giao dịch mô phỏng`)}
-async function retire(){if(!company.trim())return setToast('Vui lòng nhập tên doanh nghiệp.');if(!Number.isFinite(amount)||amount<=0||amount>balance)return setToast('Số dư GCARB chưa đủ hoặc số lượng không hợp lệ.');setBusy('retire');await new Promise(r=>setTimeout(r,1100));const c={id:crypto.randomUUID().slice(0,8).toUpperCase(),company:company.trim(),amount,reason,date:new Date().toISOString()};setCerts(items=>[c,...items]);setBalance(b=>b-amount);setRetired(r=>r+amount);setRecords(r=>[{name:company.trim(),location:'Enterprise retirement',amount,type:'Retired',date:'Vừa xong'},...r].slice(0,8));setBusy('');setToast('Đã retire tín chỉ và cấp chứng nhận demo');setTab('certificates')}
-function download(c:Certificate){const blob=new Blob([JSON.stringify({...c,network:'Demo — not an on-chain certificate',unit:'kg CO2',project:'AvaxGreen'},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`AvaxGreen-${c.id}.json`;a.click();URL.revokeObjectURL(a.href)}
-async function connect(){try{const eth=(window as unknown as {ethereum?:{request:(args:{method:string;params?:unknown[]})=>Promise<string[]>}}).ethereum;if(!eth)return setToast('Chưa có ví trình duyệt. Bạn vẫn có thể thử toàn bộ demo.');const accounts=await eth.request({method:'eth_requestAccounts'});setWallet(accounts[0]);setModal(false);setToast('Đã kết nối ví · Các thao tác hiện vẫn chạy ở chế độ demo')}catch{setToast('Kết nối ví đã bị hủy.')}}
-const nav=[{id:'overview' as Tab,label:'Tổng quan',icon:LayoutDashboard},{id:'verify' as Tab,label:'Xác minh & Mint',icon:ScanLine},{id:'market' as Tab,label:'Thị trường carbon',icon:ShoppingBag},{id:'certificates' as Tab,label:'Chứng nhận của tôi',icon:Award}];
-return <div className="app"><aside className={mobile?'sidebar open':'sidebar'}><a className="brand" href="#" onClick={e=>{e.preventDefault();navigate('overview')}}><span className="brand-icon"><Leaf size={23}/></span>avax<span>green</span><span className="brand-dot">®</span></a><div className="workspace-label">WORKSPACE <span>v1.0</span></div><nav>{nav.map(n=><button key={n.id} className={tab===n.id?'nav-item active':'nav-item'} onClick={()=>navigate(n.id)}><n.icon size={19}/>{n.label}{n.id==='certificates'&&certs.length>0&&<b>{certs.length}</b>}</button>)}</nav><div className="sidebar-line"/><div className="ecosystem-label">HỆ SINH THÁI</div><a className="nav-item" href="https://build.avax.network/" target="_blank" rel="noreferrer"><Mountain size={19}/>Avalanche ecosystem<ExternalLink size={13}/></a><button className="nav-item" onClick={()=>{setModal(true)}}><Globe2 size={19}/>Mạng lưới Fuji<span className="network-dot"/></button><div className="sidebar-bottom"><div className="hackathon-card"><span className="tiny-badge"><FlaskConical size={13}/> BUILT FOR UNIHACK</span><h3>Small rooftops.<br/>Bigger impact.</h3><p>Năng lượng sạch Việt Nam,<br/>tác động được kiểm chứng.</p><div className="hackathon-logos"><span className="avax-mark">▲</span> Avalanche <span>×</span> Team1</div></div><div className="sidebar-footer"><span className="avatar">AG</span><div>AvaxGreen Protocol<small>Climate positive by design</small></div><ShieldCheck size={17}/></div></div></aside><div className="main-shell"><header><div className="breadcrumb"><button className="icon-button mobile-menu" aria-label="Mở menu" onClick={()=>setMobile(!mobile)}><Menu size={21}/></button><span>Workspace</span><ChevronRight size={14}/><strong>{nav.find(n=>n.id===tab)?.label}</strong></div><div className="header-actions"><span className="fuji-badge"><span/>Avalanche Fuji <ChevronDown size={13}/></span><button className="wallet-button" onClick={()=>setModal(true)}><Wallet size={16}/>{wallet?`${wallet.slice(0,6)}…${wallet.slice(-4)}`:'Kết nối ví'}</button></div></header><main><div className="page-heading"><div><div className="eyebrow"><span/> THE FUTURE IS REGENERATIVE</div><h1>{tab==='overview'?'Tác động xanh, được chứng thực.':tab==='verify'?'Năng lượng sạch. Giá trị thật.':tab==='market'?'Đầu tư vào một tương lai xanh.':'Mỗi chứng nhận, một cam kết.'}</h1><p>{tab==='overview'?'Biến năng lượng mặt trời thành giá trị carbon minh bạch trên Avalanche.':tab==='verify'?'Xác minh điện mặt trời và tạo tín chỉ carbon với hồ sơ nguồn gốc rõ ràng.':tab==='market'?'Mua tín chỉ GCARB và retire để ghi nhận đóng góp của doanh nghiệp.':'Lưu giữ bằng chứng cho những đóng góp khí hậu của bạn.'}</p></div><button className="demo-switch" onClick={()=>{sampleData();navigate('verify');setToast('Dữ liệu mẫu đã sẵn sàng. Bấm Xác minh để bắt đầu.')}}><FlaskConical size={16}/>Trải nghiệm demo<ChevronRight size={15}/></button></div>
-{tab==='overview'&&<><section className="hero"><div className="hero-content"><div className="hero-tag"><Sparkles size={13}/> AI VERIFIED. AVALANCHE POWERED.</div><h2>Từ mái nhà của bạn.<br/>Đến tương lai <em>xanh hơn.</em></h2><p>Mỗi kWh sạch đều xứng đáng được ghi nhận.<br/>Xác minh bằng AI. Token hóa tín chỉ. Tạo tác động thật.</p><div className="hero-actions"><button className="primary" onClick={()=>navigate('verify')}><Plus size={17}/>Xác minh dự án</button><button className="text-button" onClick={()=>navigate('market')}>Khám phá thị trường <ChevronRight size={15}/></button></div><div className="hero-trust"><ShieldCheck size={14}/> Minh bạch từ nguồn điện đến chứng nhận</div></div><SolarScene/><div className="hero-float"><span className="float-icon"><Sun size={18}/></span><div>Clean energy. Real impact.<small><span/> Proof of impact, built in.</small></div><CheckCheck size={18}/></div><div className="hero-coordinate">10.8231° N · 106.6297° E <span>HO CHI MINH CITY</span></div></section><div className="section-line"><h3>Tổng quan hệ sinh thái</h3><span><span className="legend-dot"/> Dữ liệu mẫu · Demo workspace</span></div><div className="metrics"><Metric label="CO₂ đã token hóa" value={fmt(minted)} unit="kg CO₂" icon={Leaf} note="+12.8%" sub="so với tháng trước"/><Metric label="CO₂ đã retire" value={fmt(retired)} unit="kg CO₂" icon={TreePine} note="65.6%" sub="tín chỉ đã hoàn tất vòng đời"/><Metric label="Chứng nhận ESG" value={fmt(328+certs.length)} unit="chứng nhận" icon={FileCheck2} note="+24" sub="chứng nhận trong tháng"/><Metric label="Số dư của bạn" value={fmt(balance)} unit="GCARB" icon={Wallet} note="1 GCARB" sub="= 1 kg CO₂ theo mô hình demo"/></div><div className="dashboard-grid"><section className="panel chart-panel"><div className="panel-title"><div><h3>Từng ngày, xanh hơn</h3><p>Lượng carbon được ghi nhận theo thời gian</p></div><button className="period" onClick={()=>setPeriod(period==='6 tháng'?'12 tháng':'6 tháng')}>{period}<ChevronDown size={13}/></button></div><div className="chart-legend"><span><i/>Token hóa</span><span><i/>Đã retire</span><strong>+28.4% <small>trong {period}</small></strong></div><Chart period={period}/></section><section className="panel impact-panel"><div className="panel-title"><h3>Tác động có thể nhìn thấy</h3><span className="soft-icon"><Globe2 size={18}/></span></div><div className="impact-ring"><svg viewBox="0 0 180 180"><circle cx="90" cy="90" r="72" fill="none" stroke="#23312c" strokeWidth="11"/><circle cx="90" cy="90" r="72" fill="none" stroke="#b4ed79" strokeWidth="11" strokeDasharray="303 453" strokeLinecap="round" transform="rotate(-90 90 90)"/></svg><div><TreePine size={24}/><strong>{fmt(Math.round(retired/21))}</strong><span>cây xanh tương đương</span></div></div><p className="impact-explainer">Quy đổi minh họa: 21 kg CO₂/cây/năm.<br/>Một cách nhìn gần gũi về tác động.</p><div className="impact-bottom"><span>Tiến tới net zero</span><span>Cùng nhau <Leaf size={13}/></span></div></section></div><section className="panel activity-panel"><div className="panel-title"><div><h3>Dòng chảy tác động</h3><p>Mỗi hoạt động đều có một câu chuyện minh bạch.</p></div><button className="text-button small" onClick={()=>navigate('certificates')}>Xem chứng nhận<ChevronRight size={14}/></button></div><div className="table-wrap"><table><thead><tr><th>DỰ ÁN / DOANH NGHIỆP</th><th>HOẠT ĐỘNG</th><th>KHỐI LƯỢNG</th><th>THỜI GIAN</th><th>HỒ SƠ</th></tr></thead><tbody>{records.slice(0,4).map((r,i)=><tr key={i}><td><div className="project-cell"><span className={r.type==='Retired'?'project-icon retired':'project-icon'}>{r.type==='Retired'?<TreePine size={17}/>:<Sun size={17}/>}</span><div>{r.name}<small>{r.location}</small></div></div></td><td><span className={r.type==='Retired'?'status retired':'status'}><span/>{r.type==='Retired'?'Đã retire':'Đã xác minh'}</span></td><td className="numeric">{fmt(r.amount)} <span>kg CO₂</span></td><td className="muted">{r.date}</td><td><button className="icon-button" aria-label="Xem hồ sơ" onClick={()=>setPassport(r)}><ArrowUpRight size={17}/></button></td></tr>)}</tbody></table></div></section></>}
-{tab==='verify'&&<><div className="demo-banner"><FlaskConical size={19}/><div><strong>Judge demo · Trọn hành trình trong vài phút</strong><p>Dùng dữ liệu mẫu để thử xác minh → mint → retire → chứng nhận. Không cần AVAX.</p></div><button onClick={sampleData}>Tải dữ liệu mẫu<ChevronRight size={16}/></button></div><div className="flow-steps">{['Nguồn năng lượng','AI + dữ liệu mặt trời','Evidence Passport','Mint GCARB'].map((x,i)=><span key={x} className={(verified?i<3:i===0)?'current':''}><b>{verified&&i<3?<Check size={14}/>:i+1}</b>{x}</span>)}</div><div className="verify-grid"><section className="panel form-panel"><div className="panel-title"><div><h3>Dự án điện mặt trời của bạn</h3><p>Tải ảnh mái nhà hoặc hóa đơn điện mặt trời</p></div><Sun size={21}/></div><input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>10*1024*1024)return setToast('Vui lòng chọn ảnh dưới 10 MB.');if(!['image/png','image/jpeg','image/webp'].includes(f.type))return setToast('Chỉ hỗ trợ PNG, JPG và WEBP.');if(preview)URL.revokeObjectURL(preview);setPreview(URL.createObjectURL(f));setFile(f.name);setSample(false);setVerified(false);setClaimed(false)}}/><button className={'upload-zone '+(file?'has-file':'')} onClick={()=>input.current?.click()}>{preview?<img src={preview} alt="Ảnh dự án điện mặt trời"/>:<span className="upload-icon">{file?<Sun size={29}/>:<Upload size={27}/>}</span>}<strong>{file||'Chọn ảnh dự án của bạn'}</strong><span>{file?'Bấm để thay đổi ảnh':'PNG, JPG, WEBP · Tối đa 10 MB'}</span>{sample&&<b className="sample-badge">SAMPLE SOLAR PROJECT · THỦ ĐỨC</b>}</button><div className="input-grid"><label>Công suất lắp đặt (kWp)<input type="number" min="0.1" max="1000" value={capacity} onChange={e=>{setCapacity(Math.max(.1,Math.min(1000,Number(e.target.value)||.1)));setVerified(false)}}/></label><label>Chu kỳ ghi nhận<input value="30 ngày · Ước tính demo" readOnly/></label><label>Vĩ độ<input value={lat} onChange={e=>{setLat(e.target.value);setVerified(false)}}/></label><label>Kinh độ<input value={lng} onChange={e=>{setLng(e.target.value);setVerified(false)}}/></label></div><div className="field-note"><MapPin size={14}/>Mặc định: TP. Hồ Chí Minh, Việt Nam</div><button className="primary full" disabled={!!busy||!file||!Number.isFinite(Number(lat))||Number(lat)<-90||Number(lat)>90||!Number.isFinite(Number(lng))||Number(lng)<-180||Number(lng)>180} onClick={verify}>{busy==='verify'?<LoaderCircle className="spin" size={18}/>:<ScanLine size={18}/>} {busy==='verify'?'Đang kiểm tra hồ sơ…':'Xác minh nguồn năng lượng'}</button><p className="fine-print"><Info size={13}/>Bản xem trước dùng mô hình tính xác định; chưa gọi Gemini hoặc NASA trực tiếp.</p></section><section className="panel evidence-panel"><div className="panel-title"><div><div className="eyebrow">A BETTER KIND OF PROOF</div><h3>Evidence Passport</h3></div><ShieldCheck size={24}/></div>{!verified?<div className="evidence-empty"><div className="scan-visual"><ScanLine size={52}/></div><h3>Mọi tác động đều bắt đầu<br/>từ một bằng chứng.</h3><p>Hồ sơ sẽ hiển thị công thức, nguồn dữ liệu và lượng carbon ước tính sau khi xác minh.</p><div className="evidence-chips"><span>AI vision</span><span>Solar data</span><span>Traceability</span></div></div>:<><div className="verified-banner"><CheckCheck size={18}/>Đã tính toán · Demo deterministic</div><div className="evidence-number"><span>TIỀM NĂNG CARBON ƯỚC TÍNH</span><strong>{fmt(co2)}<small>kg CO₂</small></strong><p>{fmt(co2)} GCARB có thể mint trong demo</p></div><div className="evidence-row"><span>Công suất dự án</span><strong>{capacity} kWp</strong></div><div className="evidence-row"><span>Bức xạ mẫu</span><strong>4.86 kWh/m²/ngày</strong></div><div className="evidence-row"><span>Hiệu suất hệ thống</span><strong>80%</strong></div><div className="evidence-row"><span>Hệ số phát thải giả định</span><strong>0.6766 kg CO₂/kWh</strong></div><div className="formula">{capacity} × 4.86 × 30 × 0.8 × 0.6766<br/><span>Ước tính giáo dục, chưa phải tín chỉ carbon được chứng nhận.</span></div><button className="primary full" disabled={!!busy||claimed} onClick={mint}>{claimed?<Check size={18}/>:busy==='mint'?<LoaderCircle size={18} className="spin"/>:<Plus size={18}/>} {claimed?'Đã mint vào ví demo':`Mint ${fmt(co2)} GCARB`}</button>{claimed&&<button className="text-button full" onClick={()=>navigate('market')}>Tiếp tục mua & retire<ChevronRight size={16}/></button>}</>}</section></div></>}
-{tab==='market'&&<><div className="market-intro"><span><ShoppingBag size={18}/> CARBON MARKETPLACE</span><h2>Một hành động nhỏ.<br/>Một cam kết dài lâu.</h2><p>Mua tín chỉ từ năng lượng sạch, retire vĩnh viễn và nhận chứng nhận ESG.</p><div className="market-balance"><Wallet size={20}/><div>Số dư ví demo<strong>{fmt(balance)} <span>GCARB</span></strong></div></div></div><div className="verify-grid"><section className="panel form-panel"><div className="panel-title"><h3>Mua tín chỉ carbon</h3><span className="status">DEMO</span></div><div className="asset-card"><span className="brand-icon"><Leaf size={26}/></span><div>Green Carbon Credit<small>GCARB · Solar energy · Vietnam</small></div><ShieldCheck size={21}/></div><label>Số lượng GCARB<input type="number" value={buy} min="1" max="100000" onChange={e=>setBuy(Number(e.target.value))}/></label><div className="quick-amounts">{[100,250,500,1000].map(n=><button key={n} className={buy===n?'selected':''} onClick={()=>setBuy(n)}>{n}</button>)}</div><div className="evidence-row"><span>Tỷ giá demo</span><strong>10 GCARB = 0.001 AVAX</strong></div><div className="evidence-row"><span>Tổng thanh toán mô phỏng</span><strong>{Number.isFinite(buy)?(buy*.0001).toFixed(4):'0'} AVAX</strong></div><button className="primary full" onClick={purchase} disabled={!!busy}>{busy==='buy'?<LoaderCircle size={18} className="spin"/>:<ShoppingBag size={18}/>}Mua GCARB</button><p className="fine-print">Không chuyển AVAX thật. Số dư demo lưu trên trình duyệt này.</p></section><section className="panel form-panel"><div className="panel-title"><h3>Retire & tạo chứng nhận</h3><TreePine size={22}/></div><label>Tên doanh nghiệp<input placeholder="Ví dụ: Green Future Vietnam" value={company} maxLength={80} onChange={e=>setCompany(e.target.value)}/></label><label>Số lượng retire (kg CO₂)<input type="number" min="1" value={amount} onChange={e=>setAmount(Number(e.target.value))}/></label><label>Mục đích đóng góp<textarea value={reason} maxLength={200} onChange={e=>setReason(e.target.value)}/></label><div className="retire-note"><ShieldCheck size={19}/><p>Tín chỉ đã retire được trừ khỏi số dư demo. Chứng nhận được lưu để bạn xem lại trong thư viện.</p></div><button className="primary full" onClick={retire} disabled={!!busy}>{busy==='retire'?<LoaderCircle className="spin" size={18}/>:<Award size={18}/>}Retire & nhận chứng nhận</button></section></div></>}
-{tab==='certificates'&&<><div className="section-line"><h3>Bộ sưu tập tác động <span className="count-badge">{certs.length}</span></h3><span><ShieldCheck size={15}/>Chứng nhận demo · lưu tại trình duyệt</span></div>{certs.length===0?<section className="panel empty-gallery"><div className="certificate-illustration"><Award size={62}/><Leaf size={25}/></div><span className="eyebrow">YOUR IMPACT STARTS HERE</span><h2>Chứng nhận đầu tiên đang chờ bạn.</h2><p>Retire GCARB để tạo chứng nhận đóng góp khí hậu<br/>với tên doanh nghiệp và tác động của riêng bạn.</p><button className="primary" onClick={()=>navigate('market')}><TreePine size={18}/>Tạo tác động đầu tiên</button></section>:<div className="certificate-grid">{certs.map(c=><article className="panel certificate" key={c.id}><div className="cert-art"><div className="cert-brand"><Leaf size={17}/> AVAXGREEN <span>DEMO</span></div><Award size={43}/><span>PROOF OF CLIMATE CONTRIBUTION</span><h3>{c.company}</h3><p>has retired</p><strong>{fmt(c.amount)} <small>kg CO₂</small></strong><div className="cert-art-bottom"><span>AVALANCHE ECOSYSTEM</span><span>#{c.id}</span></div></div><div className="cert-info"><h3>{c.company}</h3><p>{c.reason}</p><div><span>{new Date(c.date).toLocaleDateString('vi-VN')}</span><button className="icon-button" aria-label="Tải chứng nhận" onClick={()=>download(c)}><Download size={18}/></button></div></div></article>)}</div>}</>}
-<footer><div><span className="avax-mark">▲</span>Built on <strong>Avalanche</strong><span className="footer-divider"/>Designed for a greener Vietnam.</div><span>UniHack 2026 <span className="footer-dot">·</span> Demo MVP</span></footer></main></div>{toast&&<div className="toast" role="status"><CheckCheck size={19}/>{toast}<button className="icon-button" onClick={()=>setToast('')}><X size={16}/></button></div>}{modal&&<div className="modal-backdrop" onClick={()=>setModal(false)}><section className="modal panel" role="dialog" aria-modal="true" aria-label="Kết nối ví" onClick={e=>e.stopPropagation()}><button className="modal-close icon-button" onClick={()=>setModal(false)}><X size={21}/></button><div className="brand-icon"><Wallet size={26}/></div><h2>Ví của bạn. Tác động của bạn.</h2><p>Kết nối ví trình duyệt để xem địa chỉ. Bản demo chưa triển khai contract và không gửi giao dịch thật.</p><button className="primary full" onClick={connect}><Wallet size={18}/>Kết nối ví EVM</button><button className="secondary full" onClick={()=>{setModal(false);setToast('Chế độ demo sẵn sàng — không cần ví.')}}><FlaskConical size={18}/>Tiếp tục với ví demo</button><a href="https://build.avax.network/console/primary-network/faucet" target="_blank" rel="noreferrer">Fuji testnet faucet<ExternalLink size={14}/></a></section></div>}{passport&&<div className="modal-backdrop" onClick={()=>setPassport(null)}><section className="panel modal" role="dialog" aria-modal="true" aria-label="Evidence Passport" onClick={e=>e.stopPropagation()}><button className="modal-close icon-button" onClick={()=>setPassport(null)}><X size={20}/></button><ShieldCheck size={34} className="lime"/><h2>Evidence Passport</h2><p>{passport.name}</p><div className="evidence-row"><span>Nguồn</span><strong>{passport.location}</strong></div><div className="evidence-row"><span>Carbon</span><strong>{fmt(passport.amount)} kg CO₂</strong></div><div className="evidence-row"><span>Trạng thái</span><strong>{passport.type==='Retired'?'Retired':'Verified'}</strong></div><div className="retire-note"><Info size={20}/><p>Hồ sơ minh họa cho buổi demo. Chưa có chữ ký oracle hoặc giao dịch on-chain.</p></div><button className="primary full" onClick={()=>setPassport(null)}>Đã hiểu</button></section></div>}</div>
+
+import {useCallback, useEffect, useMemo, useState} from 'react';
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  Award,
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  Code2,
+  Copy,
+  Download,
+  ExternalLink,
+  FileCheck2,
+  FileSpreadsheet,
+  FlaskConical,
+  Globe2,
+  Info,
+  LayoutDashboard,
+  Leaf,
+  LoaderCircle,
+  Menu,
+  Mountain,
+  Plus,
+  RefreshCw,
+  ScanLine,
+  ServerCog,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  Sun,
+  Tag,
+  TreePine,
+  Wallet,
+  X,
+} from 'lucide-react';
+import type {Address} from 'viem';
+import {AdminPanel} from '../components/AdminPanel';
+import {CertificatesPanel} from '../components/CertificatesPanel';
+import {MarketPanel} from '../components/MarketPanel';
+import {Metric, OnChainChart, SolarScene} from '../components/OverviewCharts';
+import {VerifyPanel} from '../components/VerifyPanel';
+import {
+  addressUrl,
+  ensureFujiNetwork,
+  getChainId,
+  getExplorerBase,
+  getNetworkLabel,
+  getRegistryAddress,
+  getRuntimeConfig,
+  getTokenAddress,
+  isContractDeployed,
+  setRuntimeConfig,
+  txUrl,
+} from '../lib/contracts';
+import {exportActivityCsv} from '../lib/exportReport';
+import {
+  fetchActiveListings,
+  fetchCertificateById,
+  fetchDashboardStats,
+  fetchOnChainActivity,
+  fetchRegisteredProjects,
+  fetchUserCertificates,
+  type DashboardStats,
+  type OnChainActivityItem,
+  type OnChainCertificate,
+  type P2PListing,
+  type RegisteredProject,
+} from '../lib/onchain';
+import {formatAvaxError} from '../lib/sanitize';
+import {
+  fmt,
+  formatRelativeTime,
+  getInjectedEthereum,
+  shortAddr,
+  type EvidenceDetailPayload,
+  type SystemStatus,
+  type Tab,
+} from '../lib/types';
+
+const EMPTY_STATS: DashboardStats = {
+  totalMintedKg: 0,
+  totalRetiredKg: 0,
+  totalCertificates: 0,
+  treasuryStockKg: 0,
+  escrowedListingKg: 0,
+  creditPriceWei: 100000000000000n,
+  creditPriceAvax: 0.0001,
+  defaultSoulbound: false,
+  contractOwner: null,
+  contractOracleSigner: null,
+  registryAvax: 0,
+  userBalanceKg: 0,
+  userBalanceWei: 0n,
+  userAvax: 0,
+  userAllowanceWei: 0n,
+};
+
+type ActivityFilter = 'all' | 'Minted' | 'Purchased' | 'Retired' | 'P2P' | 'Project';
+
+export default function Home() {
+  const [tab, setTab] = useState<Tab>('overview');
+  const [mobile, setMobile] = useState(false);
+  const [configVersion, setConfigVersion] = useState(0);
+
+  // Wallet & network state
+  const [wallet, setWallet] = useState<Address | null>(null);
+  const [walletChainId, setWalletChainId] = useState<number | null>(null);
+  const [modal, setModal] = useState(false);
+  const [toast, setToast] = useState('');
+
+  // On-chain state
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
+  const [activity, setActivity] = useState<OnChainActivityItem[]>([]);
+  const [certs, setCerts] = useState<OnChainCertificate[]>([]);
+  const [listings, setListings] = useState<P2PListing[]>([]);
+  const [projects, setProjects] = useState<RegisteredProject[]>([]);
+  const [publicCert, setPublicCert] = useState<OnChainCertificate | null>(null);
+  const [syncingChain, setSyncingChain] = useState(false);
+  const [sysStatus, setSysStatus] = useState<SystemStatus | null>(null);
+
+  // Overview table filters & pagination
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
+  const [activitySearch, setActivitySearch] = useState('');
+  const [activityPage, setActivityPage] = useState(1);
+
+  // Modals & Evidence Vault
+  const [selectedActivity, setSelectedActivity] = useState<OnChainActivityItem | null>(null);
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [evidenceDetail, setEvidenceDetail] = useState<EvidenceDetailPayload | null>(null);
+  const [inspectedCert, setInspectedCert] = useState<OnChainCertificate | null>(null);
+
+  // Trigger sample data load on Verify tab from top bar button
+  const [sampleSignal, setSampleSignal] = useState(0);
+
+  const activeChainId = getChainId();
+  const networkLabel = getNetworkLabel(activeChainId);
+  const explorerBase = getExplorerBase(activeChainId);
+  const registryAddr = getRegistryAddress();
+  const tokenAddr = getTokenAddress();
+  const deployed = isContractDeployed();
+  const wrongNetwork = Boolean(wallet && walletChainId !== null && walletChainId !== activeChainId);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 5500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const refreshOnChainData = useCallback(
+    async (targetWallet?: Address | null) => {
+      const activeWallet = targetWallet === undefined ? wallet : targetWallet;
+      if (!isContractDeployed()) return;
+      setSyncingChain(true);
+      try {
+        const [nextStats, nextActivity, nextListings, nextProjects] = await Promise.all([
+          fetchDashboardStats(activeWallet),
+          fetchOnChainActivity(),
+          fetchActiveListings(),
+          fetchRegisteredProjects(),
+        ]);
+        setStats(nextStats);
+        setActivity(nextActivity);
+        setListings(nextListings);
+        setProjects(nextProjects);
+        if (activeWallet) {
+          const nextCerts = await fetchUserCertificates(activeWallet, nextActivity);
+          setCerts(nextCerts);
+        } else {
+          setCerts([]);
+        }
+      } catch (err) {
+        console.error('Failed to sync on-chain state:', err);
+      } finally {
+        setSyncingChain(false);
+      }
+    },
+    [wallet]
+  );
+
+  // Fetch server status once on mount and sync runtime contract addresses if server has them
+  useEffect(() => {
+    fetch('/api/status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: SystemStatus | null) => {
+        if (!data) return;
+        setSysStatus(data);
+        if (data.isDeployed && data.registryAddress && data.tokenAddress) {
+          const current = getRuntimeConfig();
+          if (
+            current.registry?.toLowerCase() !== data.registryAddress.toLowerCase() ||
+            current.token?.toLowerCase() !== data.tokenAddress.toLowerCase()
+          ) {
+            setRuntimeConfig({
+              chainId: data.chainId,
+              network: data.network,
+              token: data.tokenAddress,
+              registry: data.registryAddress,
+              oracleSigner: data.oracleAddress || data.contractOracleSigner,
+              deployBlock: data.deployBlock,
+            });
+            setConfigVersion((v) => v + 1);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Handle ?cert=<id> deep-link for Public Certificate Verifier
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const certParam = new URLSearchParams(window.location.search).get('cert');
+    const certId = certParam ? Math.floor(Number(certParam)) : 0;
+    if (Number.isInteger(certId) && certId > 0) {
+      setTab('certificates');
+      if (isContractDeployed()) {
+        fetchCertificateById(certId, activity).then((found) => {
+          if (found) setPublicCert(found);
+        });
+      }
+    }
+  }, [configVersion, activity.length]);
+
+  // Sync on-chain state on mount, config changes, and wallet changes
+  useEffect(() => {
+    refreshOnChainData(wallet);
+  }, [wallet, configVersion, refreshOnChainData]);
+
+  // Listen to existing EVM wallet connection & account/chain events
+  useEffect(() => {
+    const eth = getInjectedEthereum();
+    if (!eth) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const [accounts, chainHex] = (await Promise.all([
+          eth.request({method: 'eth_accounts'}),
+          eth.request({method: 'eth_chainId'}),
+        ])) as [string[], string];
+        if (cancelled) return;
+        if (accounts?.[0]) {
+          setWallet(accounts[0] as Address);
+        }
+        if (chainHex) {
+          setWalletChainId(parseInt(chainHex, 16));
+        }
+      } catch {
+        // Ignore silent probe failures
+      }
+    })();
+
+    const onAccountsChanged = (accs: unknown) => {
+      const list = Array.isArray(accs) ? (accs as string[]) : [];
+      if (list[0]) {
+        setWallet(list[0] as Address);
+      } else {
+        setWallet(null);
+        setCerts([]);
+      }
+    };
+
+    const onChainChanged = (chainHex: unknown) => {
+      if (typeof chainHex === 'string') {
+        setWalletChainId(parseInt(chainHex, 16));
+      }
+      refreshOnChainData();
+    };
+
+    eth.on?.('accountsChanged', onAccountsChanged);
+    eth.on?.('chainChanged', onChainChanged);
+
+    return () => {
+      cancelled = true;
+      eth.removeListener?.('accountsChanged', onAccountsChanged);
+      eth.removeListener?.('chainChanged', onChainChanged);
+    };
+  }, [refreshOnChainData]);
+
+  // Load Evidence Vault record when opening a Minted activity modal
+  useEffect(() => {
+    if (!selectedActivity || selectedActivity.type !== 'Minted' || !selectedActivity.proofHash) {
+      setEvidenceDetail(null);
+      setEvidenceLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setEvidenceLoading(true);
+    fetch(`/api/evidence?proofHash=${encodeURIComponent(selectedActivity.proofHash)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled) setEvidenceDetail(data);
+      })
+      .catch(() => {
+        if (!cancelled) setEvidenceDetail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setEvidenceLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedActivity]);
+
+  function navigate(nextTab: Tab) {
+    setTab(nextTab);
+    setMobile(false);
+  }
+
+  async function connectWallet() {
+    const eth = getInjectedEthereum();
+    if (!eth) {
+      setToast('Không tìm thấy ví trình duyệt (MetaMask / Core Wallet).');
+      return;
+    }
+    try {
+      const accounts = (await eth.request({method: 'eth_requestAccounts'})) as string[];
+      if (!accounts?.[0]) {
+        setToast('Không có tài khoản nào được chọn.');
+        return;
+      }
+      const connected = accounts[0] as Address;
+      setWallet(connected);
+      const switchedId = await ensureFujiNetwork(eth);
+      setWalletChainId(switchedId);
+      setModal(false);
+      setToast(`Đã kết nối ${shortAddr(connected)} trên ${getNetworkLabel(switchedId)}`);
+    } catch (err) {
+      setToast(formatAvaxError(err));
+    }
+  }
+
+  async function switchNetwork() {
+    const eth = getInjectedEthereum();
+    if (!eth) return;
+    try {
+      const switchedId = await ensureFujiNetwork(eth);
+      setWalletChainId(switchedId);
+      setToast(`Đã chuyển sang mạng ${getNetworkLabel(switchedId)}`);
+    } catch (err) {
+      setToast(formatAvaxError(err));
+    }
+  }
+
+  function disconnectWallet() {
+    setWallet(null);
+    setCerts([]);
+    setModal(false);
+    setToast('Đã ngắt kết nối ví trên giao diện.');
+  }
+
+  function downloadSvg(cert: OnChainCertificate) {
+    if (!cert.svgMarkup) return;
+    const blob = new Blob([cert.svgMarkup], {type: 'image/svg+xml;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `AvaxGreen-ESG-${cert.id}.svg`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function downloadJson(cert: OnChainCertificate) {
+    const blob = new Blob([cert.rawJson], {type: 'application/json;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `AvaxGreen-ESG-${cert.id}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function copyText(value: string, label: string) {
+    navigator.clipboard?.writeText(value);
+    setToast(`Đã sao chép ${label}.`);
+  }
+
+  const retirementRatio = useMemo(() => {
+    if (stats.totalMintedKg <= 0) return 0;
+    return Math.min(100, Math.round((stats.totalRetiredKg / stats.totalMintedKg) * 1000) / 10);
+  }, [stats.totalMintedKg, stats.totalRetiredKg]);
+
+  const equivalentTrees = useMemo(() => Math.round(stats.totalRetiredKg / 21), [stats.totalRetiredKg]);
+
+  const filteredActivity = useMemo(() => {
+    const q = activitySearch.trim().toLowerCase();
+    return activity.filter((item) => {
+      if (activityFilter === 'P2P') {
+        if (
+          item.type !== 'ListingCreated' &&
+          item.type !== 'ListingPurchased' &&
+          item.type !== 'ListingCancelled'
+        ) {
+          return false;
+        }
+      } else if (activityFilter === 'Project') {
+        if (item.type !== 'ProjectRegistered') return false;
+      } else if (activityFilter !== 'all' && item.type !== activityFilter) {
+        return false;
+      }
+
+      if (!q) return true;
+      return (
+        item.actor.toLowerCase().includes(q) ||
+        item.txHash.toLowerCase().includes(q) ||
+        item.detail.toLowerCase().includes(q) ||
+        (item.proofHash && item.proofHash.toLowerCase().includes(q)) ||
+        (item.certificateId !== undefined && `#${item.certificateId}`.includes(q))
+      );
+    });
+  }, [activity, activityFilter, activitySearch]);
+
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredActivity.length / PAGE_SIZE));
+  const currentPage = Math.min(activityPage, totalPages);
+  const pagedActivity = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredActivity.slice(start, start + PAGE_SIZE);
+  }, [filteredActivity, currentPage]);
+
+  const nav = [
+    {id: 'overview' as Tab, label: 'Tổng quan', icon: LayoutDashboard},
+    {id: 'verify' as Tab, label: 'Xác minh & Mint', icon: ScanLine},
+    {id: 'market' as Tab, label: 'Thị trường carbon', icon: ShoppingBag},
+    {id: 'certificates' as Tab, label: 'Chứng nhận & Xác minh', icon: Award},
+    {id: 'admin' as Tab, label: 'Quản trị & Deploy', icon: ServerCog},
+  ];
+
+  const activityBadgeLabel = (t: OnChainActivityItem['type']) => {
+    if (t === 'Retired') return 'Đã retire';
+    if (t === 'Purchased') return 'Mua Treasury';
+    if (t === 'Minted') return 'Đã mint';
+    if (t === 'ListingCreated') return 'Đăng bán P2P';
+    if (t === 'ListingPurchased') return 'Mua P2P';
+    if (t === 'ListingCancelled') return 'Hủy P2P';
+    return 'Dự án mới';
+  };
+
+  return (
+    <div className="app">
+      <aside className={mobile ? 'sidebar open' : 'sidebar'}>
+        <a
+          className="brand"
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate('overview');
+          }}
+        >
+          <span className="brand-icon">
+            <Leaf size={23} />
+          </span>
+          avax<span>green</span>
+          <span className="brand-dot">®</span>
+        </a>
+        <div className="workspace-label">
+          WORKSPACE <span>{activeChainId === 31337 ? 'LOCAL' : 'FUJI'}</span>
+        </div>
+        <nav>
+          {nav.map((n) => (
+            <button
+              key={n.id}
+              className={tab === n.id ? 'nav-item active' : 'nav-item'}
+              onClick={() => navigate(n.id)}
+            >
+              <n.icon size={19} />
+              {n.label}
+              {n.id === 'certificates' && certs.length > 0 && <b>{certs.length}</b>}
+              {n.id === 'market' && listings.length > 0 && <b>{listings.length}</b>}
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-line" />
+        <div className="ecosystem-label">HỆ SINH THÁI</div>
+        <a
+          className="nav-item"
+          href={explorerBase || 'https://testnet.snowtrace.io'}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <Mountain size={19} />
+          Snowtrace Explorer
+          <ExternalLink size={13} />
+        </a>
+        <button className="nav-item" onClick={() => setModal(true)}>
+          <Globe2 size={19} />
+          {networkLabel}
+          <span className={wrongNetwork ? 'network-dot warn' : 'network-dot'} />
+        </button>
+
+        <div className="sidebar-bottom">
+          <div className="hackathon-card">
+            <span className="tiny-badge">
+              <FlaskConical size={13} /> BUILT FOR UNIHACK
+            </span>
+            <h3>
+              Small rooftops.
+              <br />
+              Bigger impact.
+            </h3>
+            <p>
+              Năng lượng sạch Việt Nam,
+              <br />
+              xác thực AI & on-chain Avalanche.
+            </p>
+            <div className="hackathon-logos">
+              <span className="avax-mark">▲</span> Avalanche <span>×</span> Team1
+            </div>
+          </div>
+          <div className="sidebar-footer">
+            <span className="avatar">AG</span>
+            <div>
+              AvaxGreen Protocol
+              <small>{deployed ? 'On-chain RWA · Live' : 'Chưa deploy contract'}</small>
+            </div>
+            <ShieldCheck size={17} />
+          </div>
+        </div>
+      </aside>
+
+      <div className="main-shell">
+        <header>
+          <div className="breadcrumb">
+            <button
+              className="icon-button mobile-menu"
+              aria-label="Mở menu"
+              onClick={() => setMobile(!mobile)}
+            >
+              <Menu size={21} />
+            </button>
+            <span>{networkLabel}</span>
+            <ChevronRight size={14} />
+            <strong>{nav.find((n) => n.id === tab)?.label}</strong>
+          </div>
+
+          <div className="header-actions">
+            {wrongNetwork ? (
+              <button className="fuji-badge warn-pill" onClick={switchNetwork}>
+                <span />
+                Chuyển sang {networkLabel}
+              </button>
+            ) : (
+              <span className="fuji-badge">
+                <span />
+                {networkLabel} ({activeChainId})
+              </span>
+            )}
+            <button className="wallet-button" onClick={() => setModal(true)}>
+              <Wallet size={16} />
+              {wallet ? shortAddr(wallet) : 'Kết nối ví'}
+            </button>
+          </div>
+        </header>
+
+        <main>
+          <div className="page-heading">
+            <div>
+              <div className="eyebrow">
+                <span /> AVALANCHE RWA CARBON PROTOCOL
+              </div>
+              <h1>
+                {tab === 'overview'
+                  ? 'Tác động xanh, được chứng thực.'
+                  : tab === 'verify'
+                    ? 'Năng lượng sạch. Giá trị thật.'
+                    : tab === 'market'
+                      ? 'Thị trường Carbon P2P & Treasury.'
+                      : tab === 'certificates'
+                        ? 'Chứng nhận ESG & Cổng Xác minh.'
+                        : 'Quản trị & Triển khai Hợp đồng.'}
+              </h1>
+              <p>
+                {tab === 'overview'
+                  ? 'Số liệu thực tế đọc trực tiếp từ Smart Contract, lưu trữ lịch sử trọn vẹn.'
+                  : tab === 'verify'
+                    ? 'Kiểm định đa nguồn (AI Vision, Hóa đơn EVN, IoT) + NASA POWER + IPFS CIDv1.'
+                    : tab === 'market'
+                      ? 'Mua bán P2P giữa hộ điện mặt trời & doanh nghiệp, đốt tín chỉ nhận Soulbound NFT.'
+                      : tab === 'certificates'
+                        ? 'Chứng nhận SVG 100% on-chain (SBT), mã QR xác minh công khai & xuất báo cáo PDF.'
+                        : '1-Click Deploy từ trình duyệt, nạp kho Treasury, rút AVAX & cấu hình Oracle.'}
+              </p>
+            </div>
+
+            <button
+              className="demo-switch"
+              onClick={() => {
+                navigate('verify');
+                setSampleSignal((s) => s + 1);
+              }}
+            >
+              <FlaskConical size={16} />
+              Load Sample Solar Data
+              <ChevronRight size={15} />
+            </button>
+          </div>
+
+          {!deployed && tab !== 'admin' && (
+            <div className="system-alert">
+              <AlertTriangle size={20} />
+              <div>
+                <strong>Smart Contract chưa được triển khai</strong>
+                <p>
+                  File <code>frontend/src/contracts/addresses.json</code> hiện chưa có địa chỉ hợp
+                  đồng. Bạn có thể vào tab{' '}
+                  <button className="inline-link-btn" onClick={() => navigate('admin')}>
+                    Quản trị & Deploy
+                  </button>{' '}
+                  để bấm <strong>1-Click Deploy</strong> ngay bằng MetaMask/Core Wallet hoặc chạy{' '}
+                  <code>npm run deploy:fuji -w contracts</code>.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {tab === 'overview' && (
+            <>
+              <section className="hero">
+                <div className="hero-content">
+                  <div className="hero-tag">
+                    <Sparkles size={13} /> GEMINI VISION · IOT · NASA POWER · AVALANCHE
+                  </div>
+                  <h2>
+                    Từ mái nhà của bạn.
+                    <br />
+                    Đến tương lai <em>xanh hơn.</em>
+                  </h2>
+                  <p>
+                    Mỗi kWh sạch đều được kiểm định đa lớp bằng AI, IoT & dữ liệu vệ tinh NASA.
+                    <br />
+                    Token hóa 1 GCARB = 1 kg CO₂ · Giao dịch P2P · Chứng nhận Soulbound NFT.
+                  </p>
+                  <div className="hero-actions">
+                    <button className="primary" onClick={() => navigate('verify')}>
+                      <Plus size={17} />
+                      Xác minh & Mint GCARB
+                    </button>
+                    <button className="text-button" onClick={() => navigate('market')}>
+                      Thị trường P2P & Retire <ChevronRight size={15} />
+                    </button>
+                  </div>
+                  <div className="hero-trust">
+                    <ShieldCheck size={14} /> Kiểm chứng từng giao dịch trên Snowtrace & Evidence Vault
+                  </div>
+                </div>
+                <SolarScene />
+                <div className="hero-float">
+                  <span className="float-icon">
+                    <Sun size={18} />
+                  </span>
+                  <div>
+                    100% On-Chain RWA
+                    <small>
+                      <span /> Verified by Oracle ECDSA
+                    </small>
+                  </div>
+                  <CheckCheck size={18} />
+                </div>
+                <div className="hero-coordinate">
+                  10.8231° N · 106.6297° E <span>HO CHI MINH CITY</span>
+                </div>
+              </section>
+
+              <div className="section-line">
+                <h3>Tổng quan On-Chain ({networkLabel})</h3>
+                <div className="chain-links-row">
+                  {registryAddr && addressUrl(registryAddr) && (
+                    <a
+                      className="explorer-pill"
+                      href={addressUrl(registryAddr)!}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Registry: {shortAddr(registryAddr)} <ExternalLink size={12} />
+                    </a>
+                  )}
+                  {tokenAddr && addressUrl(tokenAddr) && (
+                    <a
+                      className="explorer-pill"
+                      href={addressUrl(tokenAddr)!}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      GCARB: {shortAddr(tokenAddr)} <ExternalLink size={12} />
+                    </a>
+                  )}
+                  <button
+                    className="refresh-pill"
+                    onClick={() => refreshOnChainData()}
+                    disabled={syncingChain || !deployed}
+                  >
+                    <RefreshCw size={12} className={syncingChain ? 'spin' : ''} />
+                    {syncingChain ? 'Đang đồng bộ…' : 'Làm mới chuỗi'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="metrics">
+                <Metric
+                  label="CO₂ đã số hóa (On-chain)"
+                  value={fmt(stats.totalMintedKg)}
+                  unit="kg CO₂"
+                  icon={Leaf}
+                  note={deployed ? `${projects.length} dự án` : 'Chưa deploy'}
+                  sub="Tổng GCARB đã phát hành"
+                />
+                <Metric
+                  label="CO₂ đã bù đắp / đốt"
+                  value={fmt(stats.totalRetiredKg)}
+                  unit="kg CO₂"
+                  icon={TreePine}
+                  note={`${retirementRatio}%`}
+                  sub="Tín chỉ đã đốt vĩnh viễn"
+                />
+                <Metric
+                  label="Chứng nhận ESG NFT"
+                  value={fmt(stats.totalCertificates, 0)}
+                  unit="NFT"
+                  icon={FileCheck2}
+                  note={stats.defaultSoulbound ? 'Soulbound SBT' : 'ERC-721 / SBT'}
+                  sub="SVG metadata 100% on-chain"
+                />
+                <Metric
+                  label="Số dư GCARB của bạn"
+                  value={wallet ? fmt(stats.userBalanceKg) : '—'}
+                  unit="GCARB"
+                  icon={Wallet}
+                  note={wallet ? `${stats.userAvax.toFixed(3)} AVAX` : 'Chưa kết nối'}
+                  sub={wallet ? shortAddr(wallet) : 'Kết nối ví để đọc số dư'}
+                />
+              </div>
+
+              <div className="dashboard-grid">
+                <section className="panel chart-panel">
+                  <div className="panel-title">
+                    <div>
+                      <h3>Biến động Carbon On-Chain</h3>
+                      <p>Tích lũy từ sự kiện CreditsMinted & CreditsRetired thực tế trên chuỗi</p>
+                    </div>
+                    <span className="period">
+                      Kho: {fmt(stats.treasuryStockKg, 0)} · P2P: {fmt(stats.escrowedListingKg, 0)} GCARB
+                    </span>
+                  </div>
+                  <div className="chart-legend">
+                    <span>
+                      <i />
+                      Tổng số hóa ({fmt(stats.totalMintedKg)} kg)
+                    </span>
+                    <span>
+                      <i />
+                      Tổng đã retire ({fmt(stats.totalRetiredKg)} kg)
+                    </span>
+                    <strong>
+                      {retirementRatio}% <small>tỷ lệ retire</small>
+                    </strong>
+                  </div>
+                  <OnChainChart
+                    activity={activity}
+                    totalMinted={stats.totalMintedKg}
+                    totalRetired={stats.totalRetiredKg}
+                  />
+                </section>
+
+                <section className="panel impact-panel">
+                  <div className="panel-title">
+                    <h3>Tác động thực tế</h3>
+                    <span className="soft-icon">
+                      <Globe2 size={18} />
+                    </span>
+                  </div>
+                  <div className="impact-ring">
+                    <svg viewBox="0 0 180 180">
+                      <circle cx="90" cy="90" r="72" fill="none" stroke="#23312c" strokeWidth="11" />
+                      <circle
+                        cx="90"
+                        cy="90"
+                        r="72"
+                        fill="none"
+                        stroke="#b4ed79"
+                        strokeWidth="11"
+                        strokeDasharray={`${Math.round((retirementRatio / 100) * 452)} 453`}
+                        strokeLinecap="round"
+                        transform="rotate(-90 90 90)"
+                      />
+                    </svg>
+                    <div>
+                      <TreePine size={24} />
+                      <strong>{fmt(equivalentTrees, 0)}</strong>
+                      <span>cây xanh tương đương</span>
+                    </div>
+                  </div>
+                  <p className="impact-explainer">
+                    Quy đổi từ {fmt(stats.totalRetiredKg)} kg CO₂ đã retire thật
+                    <br />
+                    (ước tính 21 kg CO₂ / cây / năm).
+                  </p>
+                  <div className="impact-bottom">
+                    <span>Lô P2P đang mở: {listings.length}</span>
+                    <span>
+                      On-chain <Leaf size={13} />
+                    </span>
+                  </div>
+                </section>
+              </div>
+
+              <section className="panel activity-panel">
+                <div className="panel-title">
+                  <div>
+                    <h3>Dòng chảy tác động (Lịch sử On-Chain đầy đủ)</h3>
+                    <p>
+                      Quét toàn bộ từ Deploy Block · Bấm biểu tượng mũi tên trên giao dịch Mint để
+                      mở Evidence Vault.
+                    </p>
+                  </div>
+                  <div className="chain-links-row">
+                    {filteredActivity.length > 0 && (
+                      <button
+                        className="refresh-pill"
+                        onClick={() => exportActivityCsv(filteredActivity)}
+                      >
+                        <FileSpreadsheet size={12} /> Xuất CSV
+                      </button>
+                    )}
+                    <button className="text-button small" onClick={() => navigate('certificates')}>
+                      Xem chứng nhận
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="activity-toolbar">
+                  <div className="filter-pills">
+                    {(
+                      [
+                        ['all', 'Tất cả'],
+                        ['Minted', 'Mint'],
+                        ['Purchased', 'Mua Treasury'],
+                        ['Retired', 'Retire NFT'],
+                        ['P2P', 'Sàn P2P'],
+                        ['Project', 'Dự án'],
+                      ] as Array<[ActivityFilter, string]>
+                    ).map(([key, label]) => (
+                      <button
+                        key={key}
+                        className={activityFilter === key ? 'active' : ''}
+                        onClick={() => {
+                          setActivityFilter(key);
+                          setActivityPage(1);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    className="activity-search"
+                    placeholder="Tìm ví 0x…, Tx Hash, Proof, #Cert…"
+                    value={activitySearch}
+                    onChange={(e) => {
+                      setActivitySearch(e.target.value);
+                      setActivityPage(1);
+                    }}
+                  />
+                </div>
+
+                {pagedActivity.length === 0 ? (
+                  <div className="empty-table-note">
+                    <Info size={17} />
+                    <span>
+                      {deployed
+                        ? 'Không có giao dịch phù hợp bộ lọc hiện tại.'
+                        : 'Chưa kết nối contract. Hãy deploy ở tab Quản trị để xem giao dịch on-chain.'}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>ĐỊA CHỈ / CHI TIẾT</th>
+                            <th>HOẠT ĐỘNG</th>
+                            <th>KHỐI LƯỢNG</th>
+                            <th>THỜI GIAN</th>
+                            <th>KIỂM CHỨNG</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pagedActivity.map((r) => {
+                            const explorerHref = txUrl(r.txHash);
+                            return (
+                              <tr key={r.id}>
+                                <td>
+                                  <div className="project-cell">
+                                    <span
+                                      className={
+                                        r.type === 'Retired' ? 'project-icon retired' : 'project-icon'
+                                      }
+                                    >
+                                      {r.type === 'Retired' ? (
+                                        <TreePine size={17} />
+                                      ) : r.type === 'Purchased' || r.type === 'ListingPurchased' ? (
+                                        <ShoppingBag size={17} />
+                                      ) : r.type === 'ListingCreated' || r.type === 'ListingCancelled' ? (
+                                        <Tag size={17} />
+                                      ) : (
+                                        <Sun size={17} />
+                                      )}
+                                    </span>
+                                    <div>
+                                      {shortAddr(r.actor)}
+                                      <small>{r.detail}</small>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span className={r.type === 'Retired' ? 'status retired' : 'status'}>
+                                    <span />
+                                    {activityBadgeLabel(r.type)}
+                                  </span>
+                                </td>
+                                <td className="numeric">
+                                  {fmt(r.amountKg)}{' '}
+                                  <span>{r.type === 'ProjectRegistered' ? 'kWp' : 'kg CO₂'}</span>
+                                </td>
+                                <td className="muted">{formatRelativeTime(r.timestamp)}</td>
+                                <td>
+                                  <div className="tx-actions">
+                                    {explorerHref ? (
+                                      <a
+                                        className="snowtrace-link"
+                                        href={explorerHref}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                      >
+                                        {r.txHash.slice(0, 8)}… <ExternalLink size={12} />
+                                      </a>
+                                    ) : (
+                                      <span className="muted">{r.txHash.slice(0, 10)}…</span>
+                                    )}
+                                    <button
+                                      className="icon-button"
+                                      aria-label="Chi tiết & Evidence Vault"
+                                      onClick={() => setSelectedActivity(r)}
+                                    >
+                                      <ArrowUpRight size={16} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="pagination-bar">
+                      <span>
+                        Hiển thị {(currentPage - 1) * PAGE_SIZE + 1}–
+                        {Math.min(currentPage * PAGE_SIZE, filteredActivity.length)} /{' '}
+                        {filteredActivity.length} giao dịch
+                      </span>
+                      <div className="pagination-btns">
+                        <button
+                          className="refresh-pill"
+                          disabled={currentPage <= 1}
+                          onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                        >
+                          <ChevronLeft size={13} /> Trước
+                        </button>
+                        <span>
+                          Trang {currentPage}/{totalPages}
+                        </span>
+                        <button
+                          className="refresh-pill"
+                          disabled={currentPage >= totalPages}
+                          onClick={() => setActivityPage((p) => Math.min(totalPages, p + 1))}
+                        >
+                          Sau <ChevronRight size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </section>
+            </>
+          )}
+
+          {tab === 'verify' && (
+            <VerifyPanel
+              wallet={wallet}
+              sysStatus={sysStatus}
+              registeredProjects={projects}
+              onOpenWalletModal={() => setModal(true)}
+              onSetWalletChainId={setWalletChainId}
+              onToast={setToast}
+              onRefreshOnChain={refreshOnChainData}
+              onNavigateMarket={() => navigate('market')}
+              sampleSignal={sampleSignal}
+            />
+          )}
+
+          {tab === 'market' && (
+            <MarketPanel
+              wallet={wallet}
+              stats={stats}
+              listings={listings}
+              onOpenWalletModal={() => setModal(true)}
+              onSetWalletChainId={setWalletChainId}
+              onToast={setToast}
+              onRefreshOnChain={refreshOnChainData}
+              onNavigateCertificates={() => navigate('certificates')}
+            />
+          )}
+
+          {tab === 'certificates' && (
+            <CertificatesPanel
+              wallet={wallet}
+              certs={certs}
+              activity={activity}
+              publicCert={publicCert}
+              onSetPublicCert={setPublicCert}
+              onInspectCert={setInspectedCert}
+              onOpenWalletModal={() => setModal(true)}
+              onSetWalletChainId={setWalletChainId}
+              onToast={setToast}
+              onRefreshOnChain={refreshOnChainData}
+              onNavigateMarket={() => navigate('market')}
+            />
+          )}
+
+          {tab === 'admin' && (
+            <AdminPanel
+              wallet={wallet}
+              walletChainId={walletChainId}
+              stats={stats}
+              sysStatus={sysStatus}
+              onOpenWalletModal={() => setModal(true)}
+              onSetWalletChainId={setWalletChainId}
+              onToast={setToast}
+              onRefreshOnChain={refreshOnChainData}
+              onConfigChanged={() => setConfigVersion((v) => v + 1)}
+            />
+          )}
+
+          <footer>
+            <div>
+              <span className="avax-mark">▲</span>Built on <strong>Avalanche</strong>
+              <span className="footer-divider" />
+              AI-Verified RWA Carbon Credits & On-Chain ESG Certificates.
+            </div>
+            <span>
+              {networkLabel} <span className="footer-dot">·</span> UniHack 2026
+            </span>
+          </footer>
+        </main>
+      </div>
+
+      {toast && (
+        <div className="toast" role="status">
+          <CheckCheck size={19} />
+          <span>{toast}</span>
+          <button className="icon-button" onClick={() => setToast('')}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {modal && (
+        <div className="modal-backdrop" onClick={() => setModal(false)}>
+          <section
+            className="modal panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Quản lý ví EVM"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button className="modal-close icon-button" onClick={() => setModal(false)}>
+              <X size={21} />
+            </button>
+            <div className="brand-icon">
+              <Wallet size={26} />
+            </div>
+            <h2>{wallet ? `Ví ${networkLabel} của bạn` : 'Kết nối ví Web3'}</h2>
+            <p>
+              {wallet
+                ? 'Ví đang sẵn sàng ký giao dịch Mint, Mua/Bán P2P, Retire ESG NFT và Deploy.'
+                : 'Kết nối MetaMask hoặc Core Wallet. Hệ thống tự động chuyển sang mạng phù hợp.'}
+            </p>
+
+            {wallet ? (
+              <>
+                <div className="wallet-info-box">
+                  <div className="evidence-row">
+                    <span>Địa chỉ ví</span>
+                    <strong className="mono">
+                      {shortAddr(wallet)}
+                      <button
+                        className="icon-button inline-copy"
+                        onClick={() => copyText(wallet, 'địa chỉ ví')}
+                      >
+                        <Copy size={13} />
+                      </button>
+                    </strong>
+                  </div>
+                  <div className="evidence-row">
+                    <span>Mạng lưới</span>
+                    <strong>
+                      {walletChainId === activeChainId
+                        ? `${networkLabel} (${activeChainId})`
+                        : `Sai mạng (${walletChainId ?? '?'})`}
+                    </strong>
+                  </div>
+                  <div className="evidence-row">
+                    <span>Số dư test AVAX</span>
+                    <strong>{stats.userAvax.toFixed(4)} AVAX</strong>
+                  </div>
+                  <div className="evidence-row">
+                    <span>Số dư GCARB</span>
+                    <strong>{fmt(stats.userBalanceKg, 3)} GCARB</strong>
+                  </div>
+                </div>
+
+                {wrongNetwork && (
+                  <button className="primary full" onClick={switchNetwork}>
+                    Chuyển sang {networkLabel} ({activeChainId})
+                  </button>
+                )}
+
+                {addressUrl(wallet) && (
+                  <a href={addressUrl(wallet)!} target="_blank" rel="noreferrer">
+                    Xem ví trên Snowtrace <ExternalLink size={14} />
+                  </a>
+                )}
+
+                <button className="secondary full" onClick={disconnectWallet}>
+                  Ngắt kết nối
+                </button>
+              </>
+            ) : (
+              <button className="primary full" onClick={connectWallet}>
+                <Wallet size={18} />
+                Kết nối MetaMask / Core Wallet
+              </button>
+            )}
+
+            <a
+              href="https://core.app/tools/testnet-faucet/?subnet=c&token=c"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Nhận test AVAX miễn phí (Fuji Faucet) <ExternalLink size={14} />
+            </a>
+          </section>
+        </div>
+      )}
+
+      {selectedActivity && (
+        <div className="modal-backdrop" onClick={() => setSelectedActivity(null)}>
+          <section
+            className="panel modal modal-wide"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Chi tiết giao dịch & Evidence Vault"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close icon-button"
+              onClick={() => setSelectedActivity(null)}
+            >
+              <X size={20} />
+            </button>
+            <ShieldCheck size={34} className="lime" />
+            <h2>Chi tiết giao dịch On-Chain</h2>
+            <p>{selectedActivity.detail}</p>
+            <div className="evidence-row">
+              <span>Loại giao dịch</span>
+              <strong>{activityBadgeLabel(selectedActivity.type)}</strong>
+            </div>
+            <div className="evidence-row">
+              <span>Địa chỉ thực hiện</span>
+              <strong className="mono">{selectedActivity.actor}</strong>
+            </div>
+            <div className="evidence-row">
+              <span>Khối lượng</span>
+              <strong>
+                {fmt(selectedActivity.amountKg, 3)}{' '}
+                {selectedActivity.type === 'ProjectRegistered' ? 'kWp' : 'kg CO₂'}
+              </strong>
+            </div>
+            <div className="evidence-row">
+              <span>Block</span>
+              <strong>#{selectedActivity.blockNumber.toString()}</strong>
+            </div>
+            <div className="evidence-row">
+              <span>Tx Hash</span>
+              <strong className="mono">{shortAddr(selectedActivity.txHash)}</strong>
+            </div>
+
+            {selectedActivity.type === 'Minted' && selectedActivity.proofHash && (
+              <div className="evidence-vault-box">
+                <h4>Kho Bằng chứng Kiểm toán (Evidence Vault)</h4>
+                {evidenceLoading ? (
+                  <p className="muted">
+                    <LoaderCircle size={13} className="spin" /> Đang tải hồ sơ bằng chứng…
+                  </p>
+                ) : evidenceDetail ? (
+                  <>
+                    {evidenceDetail.imageDataUrl && (
+                      <img
+                        className="vault-preview"
+                        src={evidenceDetail.imageDataUrl}
+                        alt="Ảnh bằng chứng gốc"
+                      />
+                    )}
+                    <div className="evidence-row">
+                      <span>IPFS Evidence CIDv1</span>
+                      <strong className="mono">{shortAddr(evidenceDetail.record.evidenceCid)}</strong>
+                    </div>
+                    <div className="evidence-row">
+                      <span>Nguồn · Dự án · Kỳ</span>
+                      <strong>
+                        {evidenceDetail.record.sourceMode} ·{' '}
+                        {evidenceDetail.record.projectId || '—'} ·{' '}
+                        {evidenceDetail.record.billingPeriod}
+                      </strong>
+                    </div>
+                    <div className="evidence-row">
+                      <span>AI Trust · Bức xạ NASA · EXIF GPS</span>
+                      <strong>
+                        {evidenceDetail.record.trustScore ?? '—'}/100 ·{' '}
+                        {evidenceDetail.record.irradiance} kWh/m²/ngày ·{' '}
+                        {evidenceDetail.record.exifGpsMatch}
+                      </strong>
+                    </div>
+                    <p className="trust-summary" style={{marginTop: 8}}>
+                      {evidenceDetail.record.summary}
+                    </p>
+                  </>
+                ) : (
+                  <p className="muted">
+                    ProofHash: <span className="mono">{selectedActivity.proofHash}</span> (Hồ sơ ảnh
+                    không lưu trên server cục bộ này, ví dụ giao dịch Treasury Seed hoặc máy khác).
+                  </p>
+                )}
+              </div>
+            )}
+
+            {txUrl(selectedActivity.txHash) && (
+              <a
+                className="primary full"
+                style={{marginTop: 16}}
+                href={txUrl(selectedActivity.txHash)!}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Kiểm chứng trên Snowtrace <ExternalLink size={16} />
+              </a>
+            )}
+          </section>
+        </div>
+      )}
+
+      {inspectedCert && (
+        <div className="modal-backdrop" onClick={() => setInspectedCert(null)}>
+          <section
+            className="panel modal modal-wide"
+            role="dialog"
+            aria-modal="true"
+            aria-label="On-Chain Metadata Inspector"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close icon-button"
+              onClick={() => setInspectedCert(null)}
+            >
+              <X size={20} />
+            </button>
+            <Code2 size={28} className="lime" />
+            <h2>On-Chain Metadata Inspector · NFT #{inspectedCert.id}</h2>
+            <p>
+              Toàn bộ JSON và đồ họa SVG dưới đây được đọc trực tiếp từ hàm{' '}
+              <code>tokenURI({inspectedCert.id})</code> trên Smart Contract CarbonRegistry (không
+              dùng server ngoài hay IPFS).
+            </p>
+
+            <div className="inspector-block">
+              <div className="inspector-head">
+                <span>Decoded ERC-721 JSON</span>
+                <button
+                  className="icon-button"
+                  onClick={() => copyText(inspectedCert.rawJson, 'JSON metadata')}
+                >
+                  <Copy size={14} />
+                </button>
+              </div>
+              <pre>{JSON.stringify(JSON.parse(inspectedCert.rawJson), null, 2)}</pre>
+            </div>
+
+            <div className="inspector-block">
+              <div className="inspector-head">
+                <span>Decoded On-Chain SVG Markup</span>
+                <button
+                  className="icon-button"
+                  onClick={() => copyText(inspectedCert.svgMarkup, 'mã SVG')}
+                >
+                  <Copy size={14} />
+                </button>
+              </div>
+              <pre>{inspectedCert.svgMarkup}</pre>
+            </div>
+
+            <div className="inspector-actions">
+              <button className="secondary" onClick={() => downloadJson(inspectedCert)}>
+                <Download size={15} /> Tải JSON
+              </button>
+              <button className="primary" onClick={() => downloadSvg(inspectedCert)}>
+                <Download size={15} /> Tải SVG
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }
-function Metric({label,value,unit,icon:Icon,note,sub}:{label:string;value:string;unit:string;icon:typeof Leaf;note:string;sub:string}){return <section className="metric"><div><span>{label}</span><Icon size={18}/></div><strong>{value}<small>{unit}</small></strong><p><span>{note}</span>{sub}</p></section>}
-function Chart({period}:{period:string}){const months=period==='6 tháng'?['Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11']:['Tháng 1','Tháng 3','Tháng 5','Tháng 7','Tháng 9','Tháng 11'];return <div className="chart"><div className="chart-y"><span>150k</span><span>100k</span><span>50k</span><span>0</span></div><div className="chart-plot"><svg viewBox="0 0 620 175" preserveAspectRatio="none" role="img" aria-label="Biểu đồ carbon mẫu tăng trưởng qua các tháng"><defs><linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#a7df77" stopOpacity=".21"/><stop offset="100%" stopColor="#a7df77" stopOpacity="0"/></linearGradient></defs>{[12,62,112,162].map(y=><line key={y} x1="0" x2="620" y1={y} y2={y} stroke="#26322e" strokeDasharray="3 5"/>)}<path d="M0 146 C45 144 70 125 110 128 S170 98 205 100 S265 75 310 83 S370 46 413 54 S480 20 515 30 S570 7 620 9 L620 175 L0 175 Z" fill="url(#chartFill)"/><path d="M0 146 C45 144 70 125 110 128 S170 98 205 100 S265 75 310 83 S370 46 413 54 S480 20 515 30 S570 7 620 9" fill="none" stroke="#b8ed88" strokeWidth="2.5"/><path d="M0 163 C50 155 60 151 110 153 S170 130 205 134 S270 109 310 116 S370 83 413 96 S470 65 515 73 S570 49 620 55" fill="none" stroke="#4b9685" strokeWidth="2" strokeDasharray="5 5"/><circle cx="620" cy="9" r="4" fill="#c3f79a"/></svg><div className="chart-x">{months.map(m=><span key={m}>{m}</span>)}</div></div></div>}
-function SolarScene(){return <div className="solar-scene" aria-hidden="true"><svg viewBox="0 0 650 390"><defs><radialGradient id="halo"><stop offset="0" stopColor="#b7d684" stopOpacity=".19"/><stop offset="1" stopColor="#7eac62" stopOpacity="0"/></radialGradient><linearGradient id="roof" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#63816c"/><stop offset="1" stopColor="#2b493c"/></linearGradient><linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#608b94"/><stop offset=".5" stopColor="#294e61"/><stop offset="1" stopColor="#193b4c"/></linearGradient><linearGradient id="wall"><stop stopColor="#a9b3a0"/><stop offset="1" stopColor="#647c69"/></linearGradient><filter id="shadow"><feGaussianBlur stdDeviation="14"/></filter></defs><circle cx="340" cy="180" r="210" fill="url(#halo)"/><g stroke="#60825f" fill="none" opacity=".25"><ellipse cx="345" cy="265" rx="260" ry="106"/><ellipse cx="345" cy="265" rx="210" ry="84"/><path d="M120 340 L565 150 M145 130 L575 330" strokeDasharray="3 7"/></g><ellipse cx="355" cy="300" rx="185" ry="45" fill="#000" opacity=".4" filter="url(#shadow)"/><path d="M142 252 L350 157 L567 259 L358 365 Z" fill="#203c2b" stroke="#4b6a44"/><path d="M142 252 L358 354 L567 259 L567 274 L358 374 L142 268Z" fill="#182c24"/><path d="M224 215 L371 151 L480 214 L335 281 Z" fill="#c9d0b3"/><path d="M224 215 L335 274 L335 327 L224 267 Z" fill="url(#wall)"/><path d="M335 274 L480 208 L480 267 L335 327Z" fill="#748a75"/><path d="M205 214 L351 133 L497 207 L335 285Z" fill="url(#roof)" stroke="#99aa82"/><path d="M205 214 L335 279 L497 207 L497 214 L335 291 L205 221Z" fill="#3e5c4a"/>{[0,1,2].map(row=>[0,1,2,3].map(col=>{const x=237+col*32+row*27,y=208-col*17+row*14;return <g key={`${row}${col}`}><path d={`M${x} ${y} l28 -15 25 13 -28 15Z`} fill="url(#panel)" stroke="#8aaeb1" strokeWidth="1.2"/><path d={`M${x+9} ${y-5} l25 13 m-16 -18 l25 13 m-31 -3 l28 -15`} stroke="#8cb4bb" strokeWidth=".45" opacity=".8"/></g>}))}<path d="M248 252 l22 12 v29 l-22 -12Z" fill="#344c40" stroke="#80947d"/><path d="M286 273 l21 11 v18 l-21 -11Z" fill="#749ea0" stroke="#c0c9af"/><path d="M353 281 l25 -12 v25 l-25 12Z M404 257 l25 -12 v25 l-25 12Z M446 237 l20 -10 v25 l-20 10Z" fill="#35535a" stroke="#b0bda5"/>{[[178,233],[513,263],[467,304]].map(([x,y],i)=><g key={i}><path d={`M${x} ${y+12} v-43`} stroke="#8d9a61" strokeWidth="5"/><path d={`M${x-19} ${y-19} l19 -48 20 48Z`} fill="#5b8150"/><path d={`M${x-24} ${y-3} l24 -48 25 48Z`} fill="#759455"/><path d={`M${x-27} ${y+9} l27 -42 28 42Z`} fill="#507044"/></g>)}<g stroke="#c7e396" strokeWidth="1.3" fill="none"><circle cx="489" cy="99" r="19"/>{[0,45,90,135,180,225,270,315].map(a=><path key={a} d="M489 70 v-7" transform={`rotate(${a} 489 99)`}/>)}</g><path d="M474 128 L442 160 M489 138 L464 169" stroke="#bdd98c" opacity=".4" strokeDasharray="4 5"/></svg></div>}

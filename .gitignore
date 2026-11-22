@@ -3,6 +3,7 @@ node_modules
 out
 .env
 .env.local
+contracts/.env.example 
 artifacts
 cache
 coverage
@@ -10,3 +11,4 @@ typechain-types
 
 .export-api
 *.tsbuildinfo
+frontend/.data
